@@ -9,3 +9,4 @@ class Base(DeclarativeBase):
 db = SQLAlchemy(model_class=Base)
 
 from .todo import Todo
+from .user import User
