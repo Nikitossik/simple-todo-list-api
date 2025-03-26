@@ -1,7 +1,8 @@
-from sqlalchemy.orm import mapped_column
-from sqlalchemy import String, Integer, Boolean
+from sqlalchemy.orm import mapped_column, relationship
+from sqlalchemy import String, Integer, Boolean, ForeignKey
 from datetime import datetime, timezone
 from . import db
+from .user import User
 
 
 def current_datetime():
@@ -20,6 +21,9 @@ class Todo(db.Model):
         String, default=current_datetime, onupdate=current_datetime
     )
 
+    user_id = mapped_column(ForeignKey(User.id), index=True)
+    user = relationship("User", back_populates="todos")
+
     def __repr__(self):
         return f"Todo({self.id}, {self.title}, {self.desc}, {self.completed})"
 
@@ -31,4 +35,5 @@ class Todo(db.Model):
             "completed": self.completed,
             "created_at": self.created_at,
             "updated_at": self.updated_at,
+            "user_id": self.user_id,
         }

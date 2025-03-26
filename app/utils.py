@@ -8,10 +8,26 @@ def login_required(handler):
     @wraps(handler)
     def endpoint_wrapper(**kwargs):
         if g.user is None:
-            return abort(403, "Login is required to access this route")
+            return abort(401, "Login is required to access this route")
         return handler(**kwargs)
 
     return endpoint_wrapper
+
+
+# decorator for checking if logged user is the owner of todo
+def check_todo_user(todo):
+    if g.user and g.user.id != todo.user_id:
+        abort(403)
+
+
+def validate_pagination(request):
+    try:
+        page = int(request.args.get("page", 1))
+        page_size = int(request.args.get("pageSize", 10))
+    except ValueError:
+        page, page_size = 1, 10
+
+    return page, page_size
 
 
 def validate_credentials(data):

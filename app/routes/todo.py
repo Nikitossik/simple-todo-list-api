@@ -1,6 +1,6 @@
 from flask import request, abort, Blueprint, g
 from app.models import db, Todo
-from app.utils import login_required
+from app.utils import login_required, check_todo_user, validate_pagination
 
 todo_bp = Blueprint("todo", __name__)
 
@@ -8,8 +8,16 @@ todo_bp = Blueprint("todo", __name__)
 @todo_bp.route("/todo")
 @login_required
 def get_todos():
-    todos = db.session.execute(db.select(Todo)).scalars().all()
-    return [todo.to_dict() for todo in todos]
+    page, page_size = validate_pagination(request)
+
+    todos_page = db.paginate(db.select(Todo), page=page, per_page=page_size)
+
+    return {
+        "data": [todo.to_dict() for todo in todos_page.items],
+        "page": todos_page.page,
+        "pageSize": todos_page.per_page,
+        "total": todos_page.total,
+    }
 
 
 @todo_bp.route("/todo/<int:todo_id>")
@@ -23,13 +31,15 @@ def get_todo_by_id(todo_id):
 @login_required
 def create_todo():
     todo_data = request.json or {}
+    title = todo_data.get("title")
+    desc = todo_data.get("desc")
 
-    if "title" not in todo_data.keys() or not todo_data["title"]:
-        abort(400, "Missing required fields: title")
+    if not title:
+        abort(400, "Missing required field: title")
 
     try:
-        todo = Todo(**todo_data)
-    except TypeError as err:
+        todo = Todo(title=title, desc=desc, user=g.user)
+    except TypeError:
         abort(400, "Failed to create todo. Check your input.")
     else:
         db.session.add(todo)
@@ -43,12 +53,14 @@ def create_todo():
 def update_todo(todo_id):
     todo_data = request.json or {}
 
-    if "title" not in todo_data.keys() or not todo_data["title"]:
-        abort(400, "Missing required fields: title")
+    if not todo_data.get("title"):
+        abort(400, "Missing required field: title")
 
     todo = db.get_or_404(Todo, todo_id)
 
-    todo.title = todo_data["title"]
+    check_todo_user(todo)
+
+    todo.title = todo_data.get("title")
     todo.desc = todo_data.get("desc", "")
     todo.completed = todo_data.get("completed", False)
 
@@ -61,6 +73,8 @@ def update_todo(todo_id):
 @login_required
 def delete_todo(todo_id):
     todo = db.get_or_404(Todo, todo_id)
+
+    check_todo_user(todo)
 
     db.session.delete(todo)
     db.session.commit()
