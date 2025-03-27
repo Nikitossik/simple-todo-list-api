@@ -17,6 +17,9 @@ def create_app():
 
     with app.app_context():
         db.create_all()
+        # from .populate import populate_db
+
+        # populate_db()
 
     register_routes(app)
 
