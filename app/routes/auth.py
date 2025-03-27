@@ -7,11 +7,6 @@ from sqlalchemy import exc
 auth_bp = Blueprint("/", __name__)
 
 
-@auth_bp.route("/test")
-def test():
-    return "Test"
-
-
 @auth_bp.route("/register", methods=["POST"])
 def register_user():
     credentials = request.json or {}

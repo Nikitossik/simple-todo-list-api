@@ -1,6 +1,11 @@
 from flask import request, abort, Blueprint, g
 from app.models import db, Todo
-from app.utils import login_required, check_todo_user, validate_pagination
+from app.utils import (
+    login_required,
+    check_todo_user,
+    validate_pagination,
+    validate_sort,
+)
 
 todo_bp = Blueprint("todo", __name__)
 
@@ -9,8 +14,15 @@ todo_bp = Blueprint("todo", __name__)
 @login_required
 def get_todos():
     page, page_size = validate_pagination(request)
+    sort_by, desc = validate_sort(request)
 
-    todos_page = db.paginate(db.select(Todo), page=page, per_page=page_size)
+    sort_field = getattr(Todo, sort_by)
+
+    todos_page = db.paginate(
+        db.select(Todo).order_by(sort_field.desc() if desc else sort_field),
+        page=page,
+        per_page=page_size,
+    )
 
     return {
         "data": [todo.to_dict() for todo in todos_page.items],
@@ -62,7 +74,7 @@ def update_todo(todo_id):
 
     todo.title = todo_data.get("title")
     todo.desc = todo_data.get("desc", "")
-    todo.completed = todo_data.get("completed", False)
+    todo.status = todo_data.get("status", "todo")
 
     db.session.commit()
 

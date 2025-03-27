@@ -30,6 +30,21 @@ def validate_pagination(request):
     return page, page_size
 
 
+def validate_sort(request):
+    allowed_sort_fields = ["id", "title", "created_at", "updated_at"]
+
+    sort_by = request.args.get("sort_by", "id")
+    desc = request.args.get("desc", "false")
+
+    if sort_by not in allowed_sort_fields:
+        sort_by = "id"
+
+    if desc not in ["true", "false"]:
+        desc = "false"
+
+    return sort_by, True if desc == "true" else False
+
+
 def validate_credentials(data):
     user_email = data.get("email")
     user_password = data.get("password")
