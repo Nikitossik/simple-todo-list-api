@@ -1,6 +1,8 @@
 from flask import abort, g
 from functools import wraps
 import re
+from datetime import datetime
+from .models import Todo
 
 
 # decorator for checking if user is logged in
@@ -20,7 +22,7 @@ def check_todo_user(todo):
         abort(403)
 
 
-def validate_pagination(request):
+def parse_pagination(request):
     try:
         page = int(request.args.get("page", 1))
         page_size = int(request.args.get("pageSize", 10))
@@ -30,19 +32,79 @@ def validate_pagination(request):
     return page, page_size
 
 
-def validate_sort(request):
+def parse_sort(request):
     allowed_sort_fields = ["id", "title", "created_at", "updated_at"]
 
     sort_by = request.args.get("sort_by", "id")
-    desc = request.args.get("desc", "false")
+    order = request.args.get("order", "asc")
 
     if sort_by not in allowed_sort_fields:
         sort_by = "id"
 
-    if desc not in ["true", "false"]:
-        desc = "false"
+    if order not in ["asc", "desc"]:
+        order = "asc"
 
-    return sort_by, True if desc == "true" else False
+    return sort_by, order
+
+
+def build_filters(filters):
+    filters_map = {
+        "status": lambda v: Todo.status.in_(v) if type(v) is list else Todo.status == v,
+        "user": lambda v: Todo.user_id.in_(v) if type(v) is list else Todo.status == v,
+        "created_at_min": lambda v: Todo.created_at >= v,
+        "created_at_max": lambda v: Todo.created_at <= v,
+        "updated_at_min": lambda v: Todo.updated_at >= v,
+        "updated_at_max": lambda v: Todo.updated_at <= v,
+    }
+
+    conditions = []
+
+    for k, v in filters.items():
+        if k in filters_map.keys() and v:
+            conditions.append(filters_map[k](v))
+
+    return conditions
+
+
+def parse_filters(request):
+    filters = dict()
+
+    filters["status"] = parse_list_values(request, "status")
+    filters["user"] = parse_list_values(request, "user", argtype=int)
+    filters["created_at_min"] = parse_date_value(request, "created_at_min")
+    filters["created_at_max"] = parse_date_value(request, "created_at_max")
+    filters["updated_at_min"] = parse_date_value(request, "updated_at_min")
+    filters["updated_at_max"] = parse_date_value(request, "updated_at_max")
+
+    print(filters)
+
+    return filters
+
+
+def parse_date_value(request, arg):
+    argstring = request.args.get(arg, "").strip()
+    date_value = ""
+    print("date: ", type(argstring))
+
+    try:
+        date_value = datetime.fromisoformat(argstring)
+    except ValueError:
+        pass
+
+    return date_value
+
+
+def parse_list_values(request, arg, argtype=str):
+    argstring = request.args.get(arg, "").strip()
+    values = []
+
+    if argstring:
+        values = [val.strip() for val in argstring.split(",")]
+
+    if argtype is int:
+        values = [int(val) for val in values if val.isdigit()]
+
+    return values
 
 
 def validate_credentials(data):

@@ -3,9 +3,13 @@ from app.models import db, Todo
 from app.utils import (
     login_required,
     check_todo_user,
-    validate_pagination,
-    validate_sort,
+    parse_pagination,
+    parse_sort,
+    parse_filters,
+    build_filters,
 )
+from sqlalchemy import and_
+from datetime import datetime
 
 todo_bp = Blueprint("todo", __name__)
 
@@ -13,22 +17,31 @@ todo_bp = Blueprint("todo", __name__)
 @todo_bp.route("/todo")
 @login_required
 def get_todos():
-    page, page_size = validate_pagination(request)
-    sort_by, desc = validate_sort(request)
+    page, page_size = parse_pagination(request)
+    sort_by, order = parse_sort(request)
+
+    # спарсить -> построить фильтры с колонками модели -> получить conditions
+
+    filters = parse_filters(request)
+    conditions = build_filters(filters)
 
     sort_field = getattr(Todo, sort_by)
 
-    todos_page = db.paginate(
-        db.select(Todo).order_by(sort_field.desc() if desc else sort_field),
+    todos = db.select(Todo)
+    sorded_todos = todos.order_by(sort_field.desc() if order == "desc" else sort_field)
+    filtered_todos = sorded_todos.filter(and_(*conditions))
+
+    paginated_todos = db.paginate(
+        filtered_todos,
         page=page,
         per_page=page_size,
     )
 
     return {
-        "data": [todo.to_dict() for todo in todos_page.items],
-        "page": todos_page.page,
-        "pageSize": todos_page.per_page,
-        "total": todos_page.total,
+        "data": [todo.to_dict() for todo in paginated_todos.items],
+        "page": paginated_todos.page,
+        "pageSize": paginated_todos.per_page,
+        "total": paginated_todos.total,
     }
 
 
