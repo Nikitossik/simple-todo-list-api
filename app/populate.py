@@ -1,3 +1,5 @@
+# a script for prepopulating db with fake data
+
 from app.models import User, Todo, db
 from faker import Faker
 from werkzeug.security import generate_password_hash
@@ -24,6 +26,7 @@ def populate_db():
         db.session.add(
             Todo(
                 title=fake.text(max_nb_chars=20),
+                desc=fake.paragraph(nb_sentences=5),
                 created_at=created_at,
                 updated_at=updated_at,
                 status=fake.random_element(elements=["todo", "in-progress", "done"]),

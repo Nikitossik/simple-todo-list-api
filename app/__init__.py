@@ -17,12 +17,16 @@ def create_app():
 
     with app.app_context():
         db.create_all()
+
+        # uncomment this for population if the db is empty
+
         # from .populate import populate_db
 
         # populate_db()
 
     register_routes(app)
 
+    # global error handler for JSON formatting
     @app.errorhandler(HTTPException)
     def handle_exception(e):
         response = e.get_response()

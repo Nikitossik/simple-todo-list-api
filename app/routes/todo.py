@@ -9,7 +9,6 @@ from app.utils import (
     build_filters,
 )
 from sqlalchemy import and_
-from datetime import datetime
 
 todo_bp = Blueprint("todo", __name__)
 
@@ -19,8 +18,6 @@ todo_bp = Blueprint("todo", __name__)
 def get_todos():
     page, page_size = parse_pagination(request)
     sort_by, order = parse_sort(request)
-
-    # спарсить -> построить фильтры с колонками модели -> получить conditions
 
     filters = parse_filters(request)
     conditions = build_filters(filters)

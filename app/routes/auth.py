@@ -1,4 +1,4 @@
-from flask import request, abort, Blueprint, session, g, redirect, url_for
+from flask import request, abort, Blueprint, session, g
 from app.models import db, User
 from werkzeug.security import generate_password_hash, check_password_hash
 from app.utils import validate_credentials

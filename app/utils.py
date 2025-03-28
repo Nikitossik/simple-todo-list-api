@@ -5,8 +5,9 @@ from datetime import datetime
 from .models import Todo
 
 
-# decorator for checking if user is logged in
 def login_required(handler):
+    """Checks if user is available in the session. Othervise aborts with 401 HTTPException"""
+
     @wraps(handler)
     def endpoint_wrapper(**kwargs):
         if g.user is None:
@@ -16,13 +17,17 @@ def login_required(handler):
     return endpoint_wrapper
 
 
-# decorator for checking if logged user is the owner of todo
 def check_todo_user(todo):
+    """Checks if current user is the owner of todo"""
     if g.user and g.user.id != todo.user_id:
         abort(403)
 
 
 def parse_pagination(request):
+    """
+    Parses pagination parameters - page and pageSize from a query string.
+    If values are invalid, returns default: 1 and 10 for page and pageSize respectfully.
+    """
     try:
         page = int(request.args.get("page", 1))
         page_size = int(request.args.get("pageSize", 10))
@@ -33,6 +38,10 @@ def parse_pagination(request):
 
 
 def parse_sort(request):
+    """
+    Parses sorting parameters - sort_by and order from a query string.
+    The default values for values are "id" and "asc"
+    """
     allowed_sort_fields = ["id", "title", "created_at", "updated_at"]
 
     sort_by = request.args.get("sort_by", "id")
@@ -48,6 +57,9 @@ def parse_sort(request):
 
 
 def build_filters(filters):
+    """
+    Compiles filters object to SQLAlchemy filters and returns
+    """
     filters_map = {
         "status": lambda v: Todo.status.in_(v) if type(v) is list else Todo.status == v,
         "user": lambda v: Todo.user_id.in_(v) if type(v) is list else Todo.status == v,
@@ -67,6 +79,9 @@ def build_filters(filters):
 
 
 def parse_filters(request):
+    """
+    Parses filter params from a query string
+    """
     filters = dict()
 
     filters["status"] = parse_list_values(request, "status")
@@ -76,15 +91,15 @@ def parse_filters(request):
     filters["updated_at_min"] = parse_date_value(request, "updated_at_min")
     filters["updated_at_max"] = parse_date_value(request, "updated_at_max")
 
-    print(filters)
-
     return filters
 
 
 def parse_date_value(request, arg):
+    """
+    A helper function to parse a date in ISO format
+    """
     argstring = request.args.get(arg, "").strip()
     date_value = ""
-    print("date: ", type(argstring))
 
     try:
         date_value = datetime.fromisoformat(argstring)
@@ -95,6 +110,9 @@ def parse_date_value(request, arg):
 
 
 def parse_list_values(request, arg, argtype=str):
+    """
+    A helper function to parse multiple values of the argument from a query string divided by "," into a list
+    """
     argstring = request.args.get(arg, "").strip()
     values = []
 
@@ -108,6 +126,9 @@ def parse_list_values(request, arg, argtype=str):
 
 
 def validate_credentials(data):
+    """
+    Parses login and register data: email and password
+    """
     user_email = data.get("email")
     user_password = data.get("password")
 
@@ -121,6 +142,9 @@ def validate_credentials(data):
 
 
 def validate_email(email):
+    """
+    A helper function to validate email
+    """
     email_regex = r"[^@]+@[^@]+\.[^@]+"
     if not re.match(email_regex, email):
         abort(400, "Invalid email")
@@ -129,6 +153,9 @@ def validate_email(email):
 
 
 def validate_password(password):
+    """
+    A helper function to validate password
+    """
     if len(password) < 6:
         abort(400, "Password must containt at least 6 symbols")
 
