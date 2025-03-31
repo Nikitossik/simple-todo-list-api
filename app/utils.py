@@ -1,8 +1,18 @@
-from flask import abort, g
+from flask import abort, g, Request
 from functools import wraps
 import re
 from datetime import datetime
 from .models import Todo
+from typing import TypedDict, cast
+
+
+class Filters(TypedDict, total=False):
+    status: list[str]
+    user: list[int]
+    created_at_min: datetime | None
+    created_at_max: datetime | None
+    updated_at_min: datetime | None
+    updated_at_max: datetime | None
 
 
 def login_required(handler):
@@ -17,13 +27,13 @@ def login_required(handler):
     return endpoint_wrapper
 
 
-def check_todo_user(todo):
+def check_todo_user(todo: Todo):
     """Checks if current user is the owner of todo"""
     if g.user and g.user.id != todo.user_id:
         abort(403)
 
 
-def parse_pagination(request):
+def parse_pagination(request: Request) -> tuple[int, int]:
     """
     Parses pagination parameters - page and pageSize from a query string.
     If values are invalid, returns default: 1 and 10 for page and pageSize respectfully.
@@ -37,7 +47,7 @@ def parse_pagination(request):
     return page, page_size
 
 
-def parse_sort(request):
+def parse_sort(request: Request) -> tuple[str, str]:
     """
     Parses sorting parameters - sort_by and order from a query string.
     The default values for values are "id" and "asc"
@@ -56,7 +66,7 @@ def parse_sort(request):
     return sort_by, order
 
 
-def build_filters(filters):
+def build_filters(filters: Filters) -> list[bool]:
     """
     Compiles filters object to SQLAlchemy filters and returns
     """
@@ -78,14 +88,16 @@ def build_filters(filters):
     return conditions
 
 
-def parse_filters(request):
+def parse_filters(request: Request) -> Filters:
     """
     Parses filter params from a query string
     """
-    filters = dict()
+    filters: Filters = dict()
 
-    filters["status"] = parse_list_values(request, "status")
-    filters["user"] = parse_list_values(request, "user", argtype=int)
+    # separated the logic of list type parsing
+
+    filters["status"] = parse_str_list_values(request, "status")
+    filters["user"] = parse_int_list_values(request, "user")
     filters["created_at_min"] = parse_date_value(request, "created_at_min")
     filters["created_at_max"] = parse_date_value(request, "created_at_max")
     filters["updated_at_min"] = parse_date_value(request, "updated_at_min")
@@ -94,38 +106,45 @@ def parse_filters(request):
     return filters
 
 
-def parse_date_value(request, arg):
+def parse_date_value(request: Request, arg: str) -> datetime | None:
     """
     A helper function to parse a date in ISO format
     """
-    argstring = request.args.get(arg, "").strip()
-    date_value = ""
+    argstring: str = request.args.get(arg, "").strip()
 
     try:
-        date_value = datetime.fromisoformat(argstring)
+        return datetime.fromisoformat(argstring)
     except ValueError:
-        pass
-
-    return date_value
+        return None
 
 
-def parse_list_values(request, arg, argtype=str):
+def parse_str_list_values(request: Request, arg: str) -> list[str]:
     """
-    A helper function to parse multiple values of the argument from a query string divided by "," into a list
+    A helper function to parse multiple values str of the argument from a query string divided by "," into a list
     """
-    argstring = request.args.get(arg, "").strip()
-    values = []
+    argstring: str = request.args.get(arg, "").strip()
+    values: list[str] = []
 
     if argstring:
         values = [val.strip() for val in argstring.split(",")]
 
-    if argtype is int:
-        values = [int(val) for val in values if val.isdigit()]
+    return values
+
+
+def parse_int_list_values(request: Request, arg: str) -> list[int]:
+    """
+    A helper function to parse multiple int values of the argument from a query string divided by "," into a list
+    """
+    argstring: str = request.args.get(arg, "").strip()
+    values: list[int] = []
+    if argstring:
+        str_values = [val.strip() for val in argstring.split(",")]
+        values = [int(val) for val in str_values if val.isdigit()]
 
     return values
 
 
-def validate_credentials(data):
+def validate_credentials(data: dict[str, str]) -> tuple[str, str]:
     """
     Parses login and register data: email and password
     """
@@ -141,7 +160,7 @@ def validate_credentials(data):
     return user_email, user_password
 
 
-def validate_email(email):
+def validate_email(email: str) -> str:
     """
     A helper function to validate email
     """
@@ -152,7 +171,7 @@ def validate_email(email):
     return email
 
 
-def validate_password(password):
+def validate_password(password: str) -> str:
     """
     A helper function to validate password
     """
